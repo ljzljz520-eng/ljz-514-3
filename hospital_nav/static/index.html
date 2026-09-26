@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>医院陪诊 · 楼内导航</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">＋</span>
+    <div>
+      <h1>医院陪诊 · 楼内导航</h1>
+      <p>选择目的地与偏好，自动规划就诊顺序路线</p>
+    </div>
+  </div>
+  <button id="refreshBtn" class="btn-ghost" title="模拟实时叫号波动">🔄 刷新排队</button>
+</header>
+
+<main class="layout">
+  <!-- 左侧：控制面板 -->
+  <aside class="panel">
+    <section class="card">
+      <h2>① 出发位置</h2>
+      <select id="startSel" class="select"></select>
+    </section>
+
+    <section class="card">
+      <h2>② 就诊目的地</h2>
+      <p class="hint">系统按挂号 → 检验 → 影像 → 药房 → 出口顺序安排</p>
+      <div id="destBox" class="dest-list"></div>
+      <div class="mini-actions">
+        <button id="checkAll" class="link-btn">全选</button>
+        <button id="clearAll" class="link-btn">清空</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>③ 路线偏好</h2>
+      <div id="modeBox" class="mode-grid">
+        <button class="mode-btn" data-mode="walk">
+          <span class="mode-ico">🚶</span>
+          <b>少走路</b>
+          <small>总步行距离最短</small>
+        </button>
+        <button class="mode-btn" data-mode="queue">
+          <span class="mode-ico">⏱️</span>
+          <b>少排队</b>
+          <small>避让拥堵与长队窗口</small>
+        </button>
+        <button class="mode-btn" data-mode="accessible">
+          <span class="mode-ico">♿</span>
+          <b>无障碍</b>
+          <small>全程坡道/电梯，避开台阶</small>
+        </button>
+      </div>
+    </section>
+
+    <button id="planBtn" class="btn-primary">开始规划路线</button>
+  </aside>
+
+  <!-- 中间：地图 -->
+  <section class="map-wrap">
+    <div class="card map-card">
+      <div class="map-head">
+        <h2>院内楼层地图</h2>
+        <div class="legend">
+          <span><i class="lg-corridor"></i>通道</span>
+          <span><i class="lg-stairs"></i>台阶</span>
+          <span><i class="lg-ramp"></i>坡道</span>
+          <span><i class="lg-route"></i>规划路线</span>
+        </div>
+      </div>
+      <div id="map" class="map"></div>
+    </div>
+
+    <div class="card summary-card" id="summaryCard">
+      <div class="summary-main">
+        <span class="summary-label" id="summaryMode">少走路</span>
+        <span class="summary-time" id="totalTime">—</span>
+      </div>
+      <div class="summary-grid" id="summaryGrid">
+        <div><b id="mDist">—</b><small>步行距离</small></div>
+        <div><b id="mWalk">—</b><small>步行时间</small></div>
+        <div><b id="mQueue">—</b><small>预计排队</small></div>
+        <div><b id="mSvc">—</b><small>检查办理</small></div>
+      </div>
+      <div class="compare" id="compareBox"></div>
+    </div>
+  </section>
+
+  <!-- 右侧：路线步骤 -->
+  <aside class="steps-wrap">
+    <div class="card steps-card">
+      <h2>路线步骤</h2>
+      <ol id="stepList" class="step-list">
+        <li class="empty">请选择目的地后点击「开始规划路线」</li>
+      </ol>
+    </div>
+  </aside>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
