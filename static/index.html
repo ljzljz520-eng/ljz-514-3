@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智慧陪诊 · 楼内导航</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+         background:linear-gradient(135deg,#e0f2fe 0%,#f0f9ff 50%,#ecfeff 100%);
+         min-height:100vh; color:#0f172a; }
+  header { background:linear-gradient(90deg,#0e7490,#0891b2); color:#fff;
+           padding:16px 28px; display:flex; align-items:center; gap:12px;
+           box-shadow:0 2px 12px rgba(8,145,178,.3); }
+  header h1 { font-size:20px; font-weight:700; }
+  header .sub { font-size:13px; opacity:.85; margin-left:auto; }
+  main { display:flex; gap:20px; padding:20px 28px; max-width:1280px; margin:0 auto;
+         align-items:flex-start; flex-wrap:wrap; }
+  .panel { background:#fff; border-radius:16px; padding:20px;
+           box-shadow:0 4px 20px rgba(15,23,42,.08); }
+  #controls { width:300px; flex-shrink:0; }
+  #controls h2 { font-size:14px; color:#64748b; margin:16px 0 10px; font-weight:600; }
+  #controls h2:first-child { margin-top:0; }
+  select { width:100%; padding:10px 12px; border:1.5px solid #cbd5e1; border-radius:10px;
+           font-size:15px; background:#fff; }
+  .dest-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .dest { border:1.5px solid #e2e8f0; border-radius:12px; padding:10px 6px; text-align:center;
+          cursor:pointer; transition:all .15s; background:#fff; position:relative; }
+  .dest:hover { border-color:#67e8f9; transform:translateY(-1px); }
+  .dest.active { border-color:#0891b2; background:#ecfeff; box-shadow:0 0 0 3px rgba(8,145,178,.15); }
+  .dest .ic { font-size:22px; }
+  .dest .nm { font-size:14px; font-weight:600; margin-top:2px; }
+  .dest .q { font-size:11px; color:#f59e0b; }
+  .pref-list { display:flex; flex-direction:column; gap:8px; }
+  .pref { display:flex; align-items:center; gap:10px; border:1.5px solid #e2e8f0;
+          border-radius:12px; padding:10px 12px; cursor:pointer; transition:all .15s; }
+  .pref:hover { border-color:#67e8f9; }
+  .pref.active { border-color:#0891b2; background:#ecfeff; box-shadow:0 0 0 3px rgba(8,145,178,.15); }
+  .pref .ic { font-size:20px; }
+  .pref .t { font-size:14px; font-weight:600; }
+  .pref .d { font-size:11px; color:#64748b; }
+  #display { flex:1; min-width:520px; }
+  #map-wrap { position:relative; }
+  svg { width:100%; height:auto; display:block; }
+  .floor-bg { fill:#f8fafc; stroke:#e2e8f0; stroke-width:1.5; rx:14; }
+  .floor-label { font-size:15px; font-weight:700; fill:#94a3b8; }
+  .edge { stroke:#cbd5e1; stroke-width:2.5; }
+  .edge.noacc { stroke-dasharray:5 5; stroke:#e2e8f0; }
+  .edge.elevator { stroke:#a7f3d0; }
+  .edge.active { stroke:url(#routeGrad); stroke-width:5; stroke-dasharray:1000;
+                 stroke-dashoffset:1000; animation:draw 1.2s ease forwards; filter:drop-shadow(0 0 4px rgba(8,145,178,.5)); }
+  @keyframes draw { to { stroke-dashoffset:0; } }
+  .node circle { fill:#fff; stroke:#94a3b8; stroke-width:2; }
+  .node text { font-size:12px; fill:#475569; text-anchor:middle; font-weight:600; }
+  .node.service circle { stroke:#0891b2; fill:#ecfeff; }
+  .node.onpath circle { stroke:#0891b2; stroke-width:3; fill:#cffafe; }
+  .node.endpoint circle { stroke:#0e7490; stroke-width:3.5; fill:#0891b2; }
+  .node.endpoint text { fill:#0e7490; font-weight:700; }
+  #legend { display:flex; gap:16px; font-size:12px; color:#64748b; margin-top:8px; flex-wrap:wrap; }
+  .lg { display:flex; align-items:center; gap:5px; }
+  .sw { width:22px; height:0; border-top:3px solid #cbd5e1; }
+  .sw.dash { border-top-style:dashed; border-color:#cbd5e1; }
+  .sw.elev { border-color:#34d399; }
+  .sw.route { border-color:#0891b2; border-top-width:4px; }
+  #summary { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:16px; }
+  .stat { background:linear-gradient(135deg,#f0f9ff,#ecfeff); border:1px solid #bae6fd;
+          border-radius:12px; padding:12px; text-align:center; }
+  .stat .v { font-size:22px; font-weight:800; color:#0e7490; }
+  .stat .v small { font-size:12px; font-weight:500; color:#0891b2; }
+  .stat .k { font-size:12px; color:#64748b; margin-top:2px; }
+  #steps { margin-top:16px; }
+  #steps h3 { font-size:15px; margin-bottom:12px; color:#0f172a; }
+  #steps h3 .badge { font-size:12px; background:#0891b2; color:#fff; border-radius:999px;
+                     padding:2px 10px; margin-left:8px; vertical-align:2px; }
+  .step { display:flex; gap:12px; position:relative; padding-bottom:18px; }
+  .step::before { content:""; position:absolute; left:17px; top:36px; bottom:0;
+                  width:2px; background:#bae6fd; }
+  .step:last-child::before { display:none; }
+  .step .ic { width:36px; height:36px; border-radius:50%; background:#ecfeff;
+              border:2px solid #67e8f9; display:flex; align-items:center; justify-content:center;
+              font-size:17px; flex-shrink:0; z-index:1; }
+  .step.arrive .ic { background:#0891b2; border-color:#0e7490; }
+  .step .tx { font-size:14.5px; font-weight:600; padding-top:3px; }
+  .step .dt { font-size:12px; color:#64748b; margin-top:2px; }
+  .step .fl { margin-left:auto; font-size:11px; color:#0891b2; background:#ecfeff;
+              border-radius:6px; padding:2px 8px; height:fit-content; }
+  #msg { margin-top:14px; padding:12px 14px; border-radius:10px; background:#fef3c7;
+         color:#92400e; font-size:14px; display:none; }
+  @media (max-width:900px){ #controls{width:100%;} #display{min-width:0;width:100%;} }
+</style>
+</head>
+<body>
+<header>
+  <span style="font-size:26px">🏥</span>
+  <h1>智慧陪诊 · 楼内导航</h1>
+  <span class="sub">图结构 + Dijkstra 最短路径 · 少走路 / 少排队 / 无障碍优先</span>
+</header>
+<main>
+  <section id="controls" class="panel">
+    <h2>📍 当前位置</h2>
+    <select id="from"></select>
+    <h2>🎯 要去哪里</h2>
+    <div class="dest-grid" id="dests"></div>
+    <h2>🧭 路线偏好</h2>
+    <div class="pref-list" id="prefs"></div>
+  </section>
+  <section id="display" class="panel">
+    <div id="map-wrap">
+      <svg id="map" viewBox="0 0 920 480">
+        <defs>
+          <linearGradient id="routeGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#06b6d4"/><stop offset="100%" stop-color="#0e7490"/>
+          </linearGradient>
+        </defs>
+        <rect class="floor-bg" x="30" y="30" width="420" height="430" rx="14"></rect>
+        <rect class="floor-bg" x="500" y="30" width="390" height="430" rx="14"></rect>
+        <text class="floor-label" x="48" y="58">1F 门诊层</text>
+        <text class="floor-label" x="518" y="58">2F 医技层</text>
+        <g id="g-edges"></g><g id="g-route"></g><g id="g-nodes"></g>
+      </svg>
+      <div id="legend">
+        <span class="lg"><span class="sw"></span>步行通道</span>
+        <span class="lg"><span class="sw dash"></span>楼梯/扶梯（非无障碍）</span>
+        <span class="lg"><span class="sw elev"></span>无障碍电梯</span>
+        <span class="lg"><span class="sw route"></span>推荐路线</span>
+      </div>
+    </div>
+    <div id="summary"></div>
+    <div id="msg"></div>
+    <div id="steps"></div>
+  </section>
+</main>
+<script>
+const DEST_META = { registration:{icon:"🧾"}, lab:{icon:"🧪"}, imaging:{icon:"🩻"},
+                    pharmacy:{icon:"💊"}, exit:{icon:"🚪"} };
+const PREF_META = { shortest:{icon:"🚶", desc:"步行距离最短"},
+                    fastest:{icon:"⏱️", desc:"避开拥挤与候梯，全程最快"},
+                    accessible:{icon:"♿", desc:"全程无障碍通道，轮椅可行"} };
+const state = { from:"entrance", to:"registration", pref:"shortest" };
+let GRAPH = null;
+const $ = s => document.querySelector(s);
+const NS = "http://www.w3.org/2000/svg";
+
+async function init() {
+  GRAPH = await (await fetch("/api/graph")).json();
+  buildControls(); drawMap(); plan();
+  ["from"].forEach(id => $("#"+id).addEventListener("change", e => { state.from = e.target.value; plan(); }));
+}
+
+function buildControls() {
+  const nameOf = id => GRAPH.nodes.find(n => n.id === id).name;
+  $("#from").innerHTML = GRAPH.starts.map(id =>
+    `<option value="${id}">${nameOf(id)}（${GRAPH.nodes.find(n=>n.id===id).floor}）</option>`).join("");
+  $("#dests").innerHTML = GRAPH.destinations.map(id => `
+    <div class="dest" data-id="${id}">
+      <div class="ic">${DEST_META[id].icon}</div>
+      <div class="nm">${nameOf(id)}</div>
+      <div class="q">${GRAPH.queue[id] ? "排队约"+GRAPH.queue[id]+"分钟" : "无需排队"}</div>
+    </div>`).join("");
+  $("#prefs").innerHTML = GRAPH.prefs.map(p => `
+    <div class="pref" data-id="${p.id}">
+      <span class="ic">${PREF_META[p.id].icon}</span>
+      <span><div class="t">${p.label}</div><div class="d">${PREF_META[p.id].desc}</div></span>
+    </div>`).join("");
+  document.querySelectorAll(".dest").forEach(el => el.addEventListener("click", () => {
+    state.to = el.dataset.id; plan();
+  }));
+  document.querySelectorAll(".pref").forEach(el => el.addEventListener("click", () => {
+    state.pref = el.dataset.id; plan();
+  }));
+}
+
+function drawMap() {
+  const gE = $("#g-edges"), gN = $("#g-nodes");
+  const byId = Object.fromEntries(GRAPH.nodes.map(n => [n.id, n]));
+  for (const e of GRAPH.edges) {
+    const a = byId[e.a], b = byId[e.b];
+    const l = document.createElementNS(NS, "line");
+    l.setAttribute("x1", a.x); l.setAttribute("y1", a.y);
+    l.setAttribute("x2", b.x); l.setAttribute("y2", b.y);
+    l.setAttribute("class", "edge" + (e.accessible ? "" : " noacc") + (e.kind === "elevator" ? " elevator" : ""));
+    l.dataset.a = e.a; l.dataset.b = e.b;
+    gE.appendChild(l);
+  }
+  for (const n of GRAPH.nodes) {
+    const g = document.createElementNS(NS, "g");
+    g.setAttribute("class", "node" + (n.type === "service" ? " service" : ""));
+    g.dataset.id = n.id;
+    const c = document.createElementNS(NS, "circle");
+    c.setAttribute("cx", n.x); c.setAttribute("cy", n.y);
+    c.setAttribute("r", n.type === "service" ? 13 : 9);
+    const t = document.createElementNS(NS, "text");
+    t.setAttribute("x", n.x); t.setAttribute("y", n.y + (n.type === "service" ? 30 : 24));
+    t.textContent = n.name;
+    g.appendChild(c); g.appendChild(t);
+    gN.appendChild(g);
+  }
+}
+
+async function plan() {
+  document.querySelectorAll(".dest").forEach(el => el.classList.toggle("active", el.dataset.id === state.to));
+  document.querySelectorAll(".pref").forEach(el => el.classList.toggle("active", el.dataset.id === state.pref));
+  const url = `/api/route?from=${state.from}&to=${state.to}&pref=${state.pref}`;
+  const r = await (await fetch(url)).json();
+  const msg = $("#msg");
+  if (!r.ok) {
+    msg.style.display = "block"; msg.textContent = "⚠️ " + r.error;
+    $("#summary").innerHTML = ""; $("#steps").innerHTML = ""; highlight([]); return;
+  }
+  msg.style.display = "none";
+  renderSummary(r); renderSteps(r); highlight(r.path_nodes);
+}
+
+function renderSummary(r) {
+  $("#summary").innerHTML = `
+    <div class="stat"><div class="v">${r.walk_distance_m}<small> 米</small></div><div class="k">步行距离</div></div>
+    <div class="stat"><div class="v">${r.walk_time_min}<small> 分钟</small></div><div class="k">路上时间</div></div>
+    <div class="stat"><div class="v">${r.queue_time_min}<small> 分钟</small></div><div class="k">预计排队</div></div>
+    <div class="stat"><div class="v">${r.total_time_min}<small> 分钟</small></div><div class="k">全程预计</div></div>`;
+}
+
+function renderSteps(r) {
+  $("#steps").innerHTML = `
+    <h3>🧭 ${r.from.name} → ${r.to.name}<span class="badge">${r.pref_label}${r.wheelchair ? " · 轮椅可行" : ""}</span></h3>
+    ${r.steps.map(s => `
+      <div class="step ${s.kind === "arrive" ? "arrive" : ""}">
+        <div class="ic">${s.icon}</div>
+        <div><div class="tx">${s.text}</div><div class="dt">${s.detail || ""}</div></div>
+        <span class="fl">${s.floor}</span>
+      </div>`).join("")}`;
+}
+
+function highlight(pathNodes) {
+  const gR = $("#g-route"); gR.innerHTML = "";
+  const onPath = new Set(pathNodes);
+  const pairs = new Set();
+  for (let i = 0; i < pathNodes.length - 1; i++)
+    pairs.add(pathNodes[i] + "|" + pathNodes[i+1]), pairs.add(pathNodes[i+1] + "|" + pathNodes[i]);
+  document.querySelectorAll("#g-edges .edge").forEach(l => {
+    const hit = pairs.has(l.dataset.a + "|" + l.dataset.b);
+    l.style.opacity = hit ? 0 : (pathNodes.length ? 0.35 : 1);
+    if (hit) {
+      const c = l.cloneNode();
+      c.setAttribute("class", "edge active"); c.style.opacity = 1;
+      gR.appendChild(c);
+    }
+  });
+  document.querySelectorAll(".node").forEach(g => {
+    const id = g.dataset.id;
+    g.classList.toggle("onpath", onPath.has(id));
+    g.classList.toggle("endpoint", id === pathNodes[0] || id === pathNodes[pathNodes.length - 1]);
+    g.style.opacity = pathNodes.length && !onPath.has(id) ? 0.45 : 1;
+  });
+}
+
+init();
+</script>
+</body>
+</html>
